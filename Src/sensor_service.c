@@ -37,6 +37,7 @@
 #include "sensor_service.h"
 #include "bluenrg_gap_aci.h"
 #include "bluenrg_gatt_aci.h"
+#include "bme280_driver.h"
 
 /** @addtogroup Applications
  *  @{
@@ -442,35 +443,47 @@ void GAP_DisconnectionComplete_CB(void)
  */
 void Read_Request_CB(uint16_t handle)
 {  
-  if(handle == accCharHandle + 1){
-    Acc_Update((AxesRaw_t*)&axes_data);
-  }  
-  else if(handle == tempCharHandle + 1){
-    int16_t data;
-    data = 270 + ((uint64_t)rand()*15)/RAND_MAX; //sensor emulation        
-    Acc_Update((AxesRaw_t*)&axes_data); //FIXME: to overcome issue on Android App
-                                        // If the user button is not pressed within
-                                        // a short time after the connection,
-                                        // a pop-up reports a "No valid characteristics found" error.
-    Temp_Update(data);
-  }
-  else if(handle == pressCharHandle + 1){
-    int32_t data;
+	if(handle == accCharHandle + 1){
+		Acc_Update((AxesRaw_t*)&axes_data);
+		if(connection_handle != 0)
+			aci_gatt_allow_read(connection_handle);
+		return;
+	}
 
-    HAL_Delay(100);
-    data = 100000 + ((uint64_t)rand()*1000)/RAND_MAX;
-    Press_Update(data);
-  }
-  else if(handle == humidityCharHandle + 1){
-    uint16_t data;
-    
-    data = 450 + ((uint64_t)rand()*100)/RAND_MAX;
-    
-    Humidity_Update(data);
-  }  
+	if(0 != bme280_data_readout()){
+		HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
+		PRINTF("BME280 sensor read failed\r\n");
+		return;
+	}
 
-  if(connection_handle != 0)
-    aci_gatt_allow_read(connection_handle);
+	if(handle == tempCharHandle + 1){
+		int16_t data = (int16_t)(temp*10);
+		//data = 270 + ((uint64_t)rand()*15)/RAND_MAX; //sensor emulation
+//
+//		int16_t data2 = 270 + ((uint64_t)rand()*15)/RAND_MAX;
+		Acc_Update((AxesRaw_t*)&axes_data); //FIXME: to overcome issue on Android App
+										// If the user button is not pressed within
+										// a short time after the connection,
+										// a pop-up reports a "No valid characteristics found" error.
+		Temp_Update(data);
+	}
+	else if(handle == pressCharHandle + 1){
+		int32_t data = (int32_t)(press*100);
+
+		HAL_Delay(100);
+		//data = 100000 + ((uint64_t)rand()*1000)/RAND_MAX;
+		Press_Update(data);
+	}
+	else if(handle == humidityCharHandle + 1){
+		uint16_t data = (uint16_t)(hum*10);
+
+		//data = 450 + ((uint64_t)rand()*100)/RAND_MAX;
+
+		Humidity_Update(data);
+	}
+
+	if(connection_handle != 0)
+		aci_gatt_allow_read(connection_handle);
 }
 
 /**
