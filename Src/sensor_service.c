@@ -39,6 +39,8 @@
 #include "bluenrg_gatt_aci.h"
 #include "bme280_driver.h"
 
+#include "stm32l4xx_nucleo.h"
+
 /** @addtogroup Applications
  *  @{
  */
@@ -62,7 +64,7 @@ __IO uint8_t notification_enabled = FALSE;
 __IO AxesRaw_t axes_data = {0, 0, 0};
 uint16_t sampleServHandle, TXCharHandle, RXCharHandle;
 uint16_t accServHandle, freeFallCharHandle, accCharHandle;
-uint16_t envSensServHandle, tempCharHandle, pressCharHandle, humidityCharHandle;
+uint16_t envSensServHandle, tempCharHandle, pressCharHandle, humidityCharHandle, ledCharHandle;
 /**
  * @}
  */
@@ -87,6 +89,8 @@ do {\
 #define COPY_TEMP_CHAR_UUID(uuid_struct)         COPY_UUID_128(uuid_struct,0xa3,0x2e,0x55,0x20, 0xe4,0x77, 0x11,0xe2, 0xa9,0xe3, 0x00,0x02,0xa5,0xd5,0xc5,0x1b)
 #define COPY_PRESS_CHAR_UUID(uuid_struct)        COPY_UUID_128(uuid_struct,0xcd,0x20,0xc4,0x80, 0xe4,0x8b, 0x11,0xe2, 0x84,0x0b, 0x00,0x02,0xa5,0xd5,0xc5,0x1b)
 #define COPY_HUMIDITY_CHAR_UUID(uuid_struct)     COPY_UUID_128(uuid_struct,0x01,0xc5,0x0b,0x60, 0xe4,0x8c, 0x11,0xe2, 0xa0,0x73, 0x00,0x02,0xa5,0xd5,0xc5,0x1b)
+
+#define COPY_LED_CHAR_UUID(uuid_struct)     	 COPY_UUID_128(uuid_struct,0x03,0xc6,0x0c,0x61, 0xe4,0x8d, 0x11,0xe2, 0xa1,0x74, 0x00,0x02,0xa5,0xd5,0xc5,0x1b)
 
 /* Store Value into a buffer in Little Endian Format */
 #define STORE_LE_16(buf, val)    ( ((buf)[0] =  (uint8_t) (val)    ) , \
@@ -199,7 +203,7 @@ tBleStatus Add_Environmental_Sensor_Service(void)
   uint16_t descHandle;
   
   COPY_ENV_SENS_SERVICE_UUID(uuid);
-  ret = aci_gatt_add_serv(UUID_TYPE_128,  uuid, PRIMARY_SERVICE, 10,
+  ret = aci_gatt_add_serv(UUID_TYPE_128,  uuid, PRIMARY_SERVICE, 20,
                           &envSensServHandle);
   if (ret != BLE_STATUS_SUCCESS) goto fail;
   
@@ -237,7 +241,8 @@ tBleStatus Add_Environmental_Sensor_Service(void)
   /* Pressure Characteristic */
   if(1){ //FIXME
     COPY_PRESS_CHAR_UUID(uuid);  
-    ret =  aci_gatt_add_char(envSensServHandle, UUID_TYPE_128, uuid, 3,
+    ret =  aci_gatt_add_char(envSensServHandle, UUID_TYPE_128, uuid,
+    						 3,
                              CHAR_PROP_READ, ATTR_PERMISSION_NONE,
                              GATT_NOTIFY_READ_REQ_AND_WAIT_FOR_APPL_RESP,
                              16, 0, &pressCharHandle);
@@ -248,16 +253,16 @@ tBleStatus Add_Environmental_Sensor_Service(void)
     charFormat.unit = UNIT_PRESSURE_BAR;
     charFormat.name_space = 0;
     charFormat.desc = 0;
-    
+
     uuid16 = CHAR_FORMAT_DESC_UUID;
-    
+
     ret = aci_gatt_add_char_desc(envSensServHandle,
                                  pressCharHandle,
                                  UUID_TYPE_16,
-                                 (uint8_t *)&uuid16, 
+                                 (uint8_t *)&uuid16,
                                  7,
                                  7,
-                                 (void *)&charFormat, 
+                                 (void *)&charFormat,
                                  ATTR_PERMISSION_NONE,
                                  ATTR_ACCESS_READ_ONLY,
                                  0,
@@ -298,7 +303,49 @@ tBleStatus Add_Environmental_Sensor_Service(void)
                                  &descHandle);
     if (ret != BLE_STATUS_SUCCESS) goto fail;
   } 
-  PRINTF("Service ENV_SENS added. Handle 0x%04X, TEMP Charac handle: 0x%04X, PRESS Charac handle: 0x%04X, HUMID Charac handle: 0x%04X\n",envSensServHandle, tempCharHandle, pressCharHandle, humidityCharHandle);	
+
+  /* LED Characteristic */
+  if(1){   //FIXME
+	COPY_LED_CHAR_UUID(uuid);
+    ret =  aci_gatt_add_char(envSensServHandle,
+    						 UUID_TYPE_128,
+							 uuid,
+							 2,
+    						 CHAR_PROP_WRITE | CHAR_PROP_WRITE_WITHOUT_RESP,
+							 ATTR_PERMISSION_NONE, // ATTR_PERMISSION_AUTHOR_WRITE | ATTR_PERMISSION_ENCRY_WRITE
+							 GATT_NOTIFY_WRITE_REQ_AND_WAIT_FOR_APPL_RESP | GATT_NOTIFY_ATTRIBUTE_WRITE,
+                             16,
+							 0,
+							 &ledCharHandle);
+    if (ret != BLE_STATUS_SUCCESS) goto fail;
+
+    charFormat.format = FORMAT_UINT16; //FORMAT_UINT8; //FORMAT_UINT16;
+    charFormat.exp = -1;
+    charFormat.unit = UNIT_UNITLESS;
+    charFormat.name_space = 0;
+    charFormat.desc = 0;
+
+    uuid16 = CHAR_FORMAT_DESC_UUID;
+
+    ret = aci_gatt_add_char_desc(envSensServHandle,
+    							 ledCharHandle,
+                                 UUID_TYPE_16,
+                                 (uint8_t *)&uuid16,
+                                 7,
+                                 7,
+                                 (void *)&charFormat,
+                                 ATTR_PERMISSION_NONE,
+								 ATTR_PERMISSION_NONE, //ATTR_ACCESS_WRITE_REQ_ONLY,
+								 ATTR_ACCESS_WRITE_REQ_ONLY, //0,
+                                 16,
+                                 FALSE,
+                                 &descHandle);
+    if (ret != BLE_STATUS_SUCCESS) goto fail;
+  }
+
+  PRINTF("Service ENV_SENS added. Handle 0x%04X, TEMP Charac handle: 0x%04X, PRESS Charac handle: 0x%04X, HUMID Charac handle: 0x%04X LED Charac handle: 0x%04X\n",
+		  envSensServHandle, tempCharHandle, pressCharHandle, humidityCharHandle, ledCharHandle);
+
   return BLE_STATUS_SUCCESS; 
   
 fail:
@@ -486,6 +533,20 @@ void Read_Request_CB(uint16_t handle)
 		aci_gatt_allow_read(connection_handle);
 }
 
+
+void Write_Request_CB(evt_gatt_write_permit_req *pr)
+{
+
+	if(pr->attr_handle == ledCharHandle + 1){
+		if(pr->data[0] == 0x31)
+			BSP_LED_On(LED2);
+		else
+			BSP_LED_Off(LED2);
+
+		aci_gatt_write_response(pr->conn_handle, pr->attr_handle, 0, 0, pr->data_length, pr->data);
+	}
+}
+
 /**
  * @brief  Callback processing the ACI events.
  * @note   Inside this function each event must be identified and correctly
@@ -526,18 +587,23 @@ void user_notify(void * pData)
     break;
     
   case EVT_VENDOR:
-    {
-      evt_blue_aci *blue_evt = (void*)event_pckt->data;
-      switch(blue_evt->ecode){
-
-      case EVT_BLUE_GATT_READ_PERMIT_REQ:
-        {
-          evt_gatt_read_permit_req *pr = (void*)blue_evt->data;                    
-          Read_Request_CB(pr->attr_handle);                    
-        }
-        break;
-      }
-    }
+	{
+		evt_blue_aci *blue_evt = (void*)event_pckt->data;
+		switch(blue_evt->ecode){
+		case EVT_BLUE_GATT_READ_PERMIT_REQ:
+		{
+			evt_gatt_read_permit_req *pr = (void*)blue_evt->data;
+			Read_Request_CB(pr->attr_handle);
+			break;
+		}
+		case EVT_BLUE_GATT_WRITE_PERMIT_REQ:
+		{
+			evt_gatt_write_permit_req *pr = (void *)blue_evt->data;
+			Write_Request_CB(pr);
+			break;
+		}
+		}
+	}
     break;
   }    
 }
