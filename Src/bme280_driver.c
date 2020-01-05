@@ -153,20 +153,6 @@ AND HUMIDITY DATA ********
 	press = ((float)(v_comp_press_u32[1])/100);
 	hum = ((float)(v_comp_humidity_u32[1])/1024);
 
-//	HAL_Delay(100);
-//	//float imp_temp = ((float)(v_comp_temp_s32[1])/100)*1.8+32;		// convert to fahrenheit
-//	float imp_temp = ((float)v_comp_temp_s32[1]/100);
-//	//float imp_press = ((float)(v_comp_press_u32[1])/100)*.0295300; 	// convert to inches of mercury
-//	float imp_press = ((float)(v_comp_press_u32[1])/100);
-//	float imp_humi = ((float)(v_comp_humidity_u32[1])/1024);		// relative humidity
-//
-//	char line[80];
-//	snprintf(line, 80, "Temp: %.f DegF,  Press: %.2f inHg,  Humi: %.f%% rH\r\n",
-//								imp_temp,
-//								imp_press,
-//								imp_humi);
-//	  debugPrint(&huart2, line);
-
 /*-----------------------------------------------------------------------*
 ************************* START DE-INITIALIZATION ***********************
 *-------------------------------------------------------------------------*/
@@ -207,8 +193,6 @@ s8 I2C_routine(void) {
 	return BME280_INIT_VALUE;
 }
 
-/************** I2C/SPI buffer length ******/
-//#define	I2C_BUFFER_LEN 28
 
 /*-------------------------------------------------------------------*
 *	This is a sample code for read and write the data by using I2C/SPI
@@ -262,16 +246,13 @@ s8 BME280_I2C_bus_read(u8 dev_addr, u8 reg_addr, u8 *reg_data, u8 cnt)
 							(uint16_t)(dev_addr<<1),	// i2c address, left aligned
 							(uint16_t)reg_addr,			// register address
 							I2C_MEMADD_SIZE_8BIT,		// bme280 uses 8bit register addresses
-							(uint8_t *)reg_data,		// write returned data to this variable //(uint8_t *)(&array),
+							(uint8_t *)reg_data,		// write returned data to this variable
 							cnt,						// how many bytes to expect returned
 							100);						// timeout
 
 
     if (status != HAL_OK)
-    {
-        // The BME280 API calls for 0 return value as a success, and -1 returned as failure
         return -1;
-    }
 
 	return 0;
 }
