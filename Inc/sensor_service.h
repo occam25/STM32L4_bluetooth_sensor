@@ -97,10 +97,10 @@ typedef struct {
 /** @addtogroup SENSOR_SERVICE_Exported_Functions
  *  @{
  */
-tBleStatus Add_Acc_Service(void);
-tBleStatus Acc_Update(AxesRaw_t *data);
+//tBleStatus Add_Acc_Service(void);
+//tBleStatus Acc_Update(AxesRaw_t *data);
 tBleStatus Add_Environmental_Sensor_Service(void);
-tBleStatus Free_Fall_Notify(void);
+//tBleStatus Free_Fall_Notify(void);
 tBleStatus Temp_Update(int16_t temp);
 tBleStatus Press_Update(int32_t press);
 tBleStatus Humidity_Update(uint16_t humidity);
