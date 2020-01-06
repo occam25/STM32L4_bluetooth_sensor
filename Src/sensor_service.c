@@ -28,7 +28,6 @@ do {\
 #define COPY_HUMIDITY_CHAR_UUID(uuid_struct)     COPY_UUID_128(uuid_struct,0x01,0xc5,0x0b,0x60, 0xe4,0x8c, 0x11,0xe2, 0xa0,0x73, 0x00,0x02,0xa5,0xd5,0xc5,0x1b)
 #define COPY_THRESHOLD_CHAR_UUID(uuid_struct)  	 COPY_UUID_128(uuid_struct,0x03,0xc6,0x0c,0x61, 0xe4,0x8d, 0x11,0xe2, 0xa1,0x74, 0x00,0x02,0xa5,0xd5,0xc5,0x1b)
 #define COPY_ALARM_CHAR_UUID(uuid_struct)  	 	 COPY_UUID_128(uuid_struct,0x04,0xc7,0x0d,0x62, 0xe4,0x8e, 0x11,0xe2, 0xa2,0x75, 0x00,0x02,0xa5,0xd5,0xc5,0x1b)
-//#define COPY_READ_PERIOD_CHAR_UUID(uuid_struct)  COPY_UUID_128(uuid_struct,0x05,0xc8,0x0e,0x63, 0xe4,0x8f, 0x11,0xe2, 0xa3,0x76, 0x00,0x02,0xa5,0xd5,0xc5,0x1b)
 
 /* Store Value into a buffer in Little Endian Format */
 #define STORE_LE_16(buf, val)    ( ((buf)[0] =  (uint8_t) (val)    ) , \
@@ -159,9 +158,12 @@ tBleStatus Add_Environmental_Sensor_Service(void)
 							 UUID_TYPE_128,
 							 uuid,
 							 2,
-							 CHAR_PROP_READ | CHAR_PROP_WRITE | CHAR_PROP_WRITE_WITHOUT_RESP,
+							 CHAR_PROP_READ | CHAR_PROP_WRITE |
+							 CHAR_PROP_WRITE_WITHOUT_RESP,
 							 ATTR_PERMISSION_NONE,
-							 GATT_NOTIFY_READ_REQ_AND_WAIT_FOR_APPL_RESP | GATT_NOTIFY_WRITE_REQ_AND_WAIT_FOR_APPL_RESP | GATT_NOTIFY_ATTRIBUTE_WRITE,
+							 GATT_NOTIFY_READ_REQ_AND_WAIT_FOR_APPL_RESP |
+							 GATT_NOTIFY_WRITE_REQ_AND_WAIT_FOR_APPL_RESP |
+							 GATT_NOTIFY_ATTRIBUTE_WRITE,
 							 16,
 							 0,
 							 &thresholdCharHandle);
@@ -184,7 +186,7 @@ tBleStatus Add_Environmental_Sensor_Service(void)
 								 (void *)&charFormat,
 								 ATTR_PERMISSION_NONE,
 								 ATTR_PERMISSION_NONE,
-								 ATTR_ACCESS_READ_WRITE, //ATTR_ACCESS_WRITE_REQ_ONLY, //0,
+								 ATTR_ACCESS_READ_WRITE,
 								 16,
 								 FALSE,
 								 &descHandle);

@@ -224,13 +224,7 @@ static void User_Init(void)
   BSP_COM_Init(COM1);
 }
 
-/**
- * @brief  Process user input (i.e. pressing the USER button on Nucleo board)
- *         and send the updated acceleration data to the remote client.
- *
- * @param  AxesRaw_t* p_axes
- * @retval None
- */
+
 static void User_Process(void)
 {
   if (set_connectable)

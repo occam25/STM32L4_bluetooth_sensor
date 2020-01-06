@@ -316,16 +316,9 @@ static void MX_GPIO_Init(void)
   */
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
-//	static uint8_t cnt = 0;
-
 	if(htim->Instance == TIM3){ // if the source is TIM3
 		// Enter here every second
-//		cnt++;
-//		if(cnt >= read_period){
-//			cnt = 0;
-			trigger_new_read = 1;
-			//BSP_LED_Toggle(LED2);
-//		}
+		trigger_new_read = 1;
 	}
 }
 /* USER CODE END 4 */
