@@ -5,7 +5,7 @@
   *          for the STM32 BlueNRG-MS HCI Transport Layer interface
   ******************************************************************************
   *
-  * COPYRIGHT 2019 STMicroelectronics
+  * COPYRIGHT 2020 STMicroelectronics
   *
   * Licensed under MCD-ST Liberty SW License Agreement V2, (the "License");
   * You may not use this file except in compliance with the License.

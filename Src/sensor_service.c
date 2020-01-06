@@ -12,7 +12,7 @@ __IO uint8_t set_connectable = 1;
 __IO uint16_t connection_handle = 0;
 __IO uint8_t notification_enabled = FALSE;
 uint16_t sampleServHandle, TXCharHandle, RXCharHandle;
-uint16_t envSensServHandle, tempCharHandle, pressCharHandle, humidityCharHandle, ledCharHandle;
+uint16_t envSensServHandle, tempCharHandle, pressCharHandle, humidityCharHandle, thresholdCharHandle, alarmCharHandle;
 
 #define COPY_UUID_128(uuid_struct, uuid_15, uuid_14, uuid_13, uuid_12, uuid_11, uuid_10, uuid_9, uuid_8, uuid_7, uuid_6, uuid_5, uuid_4, uuid_3, uuid_2, uuid_1, uuid_0) \
 do {\
@@ -26,13 +26,17 @@ do {\
 #define COPY_TEMP_CHAR_UUID(uuid_struct)         COPY_UUID_128(uuid_struct,0xa3,0x2e,0x55,0x20, 0xe4,0x77, 0x11,0xe2, 0xa9,0xe3, 0x00,0x02,0xa5,0xd5,0xc5,0x1b)
 #define COPY_PRESS_CHAR_UUID(uuid_struct)        COPY_UUID_128(uuid_struct,0xcd,0x20,0xc4,0x80, 0xe4,0x8b, 0x11,0xe2, 0x84,0x0b, 0x00,0x02,0xa5,0xd5,0xc5,0x1b)
 #define COPY_HUMIDITY_CHAR_UUID(uuid_struct)     COPY_UUID_128(uuid_struct,0x01,0xc5,0x0b,0x60, 0xe4,0x8c, 0x11,0xe2, 0xa0,0x73, 0x00,0x02,0xa5,0xd5,0xc5,0x1b)
-
-#define COPY_LED_CHAR_UUID(uuid_struct)     	 COPY_UUID_128(uuid_struct,0x03,0xc6,0x0c,0x61, 0xe4,0x8d, 0x11,0xe2, 0xa1,0x74, 0x00,0x02,0xa5,0xd5,0xc5,0x1b)
+#define COPY_THRESHOLD_CHAR_UUID(uuid_struct)  	 COPY_UUID_128(uuid_struct,0x03,0xc6,0x0c,0x61, 0xe4,0x8d, 0x11,0xe2, 0xa1,0x74, 0x00,0x02,0xa5,0xd5,0xc5,0x1b)
+#define COPY_ALARM_CHAR_UUID(uuid_struct)  	 	 COPY_UUID_128(uuid_struct,0x04,0xc7,0x0d,0x62, 0xe4,0x8e, 0x11,0xe2, 0xa2,0x75, 0x00,0x02,0xa5,0xd5,0xc5,0x1b)
+//#define COPY_READ_PERIOD_CHAR_UUID(uuid_struct)  COPY_UUID_128(uuid_struct,0x05,0xc8,0x0e,0x63, 0xe4,0x8f, 0x11,0xe2, 0xa3,0x76, 0x00,0x02,0xa5,0xd5,0xc5,0x1b)
 
 /* Store Value into a buffer in Little Endian Format */
 #define STORE_LE_16(buf, val)    ( ((buf)[0] =  (uint8_t) (val)    ) , \
                                    ((buf)[1] =  (uint8_t) (val>>8) ) )
 
+
+static uint16_t temp_alarm = 0;
+static uint16_t temp_threshold = 30;
 
 /**
  * @brief  Add the Environmental Sensor service.
@@ -149,18 +153,18 @@ tBleStatus Add_Environmental_Sensor_Service(void)
 	if (ret != BLE_STATUS_SUCCESS) goto fail;
 
 
-  /* LED Characteristic */
-	COPY_LED_CHAR_UUID(uuid);
+  /* Threshold Characteristic */
+	COPY_THRESHOLD_CHAR_UUID(uuid);
 	ret =  aci_gatt_add_char(envSensServHandle,
 							 UUID_TYPE_128,
 							 uuid,
 							 2,
-							 CHAR_PROP_WRITE | CHAR_PROP_WRITE_WITHOUT_RESP,
+							 CHAR_PROP_READ | CHAR_PROP_WRITE | CHAR_PROP_WRITE_WITHOUT_RESP,
 							 ATTR_PERMISSION_NONE,
-							 GATT_NOTIFY_WRITE_REQ_AND_WAIT_FOR_APPL_RESP | GATT_NOTIFY_ATTRIBUTE_WRITE,
+							 GATT_NOTIFY_READ_REQ_AND_WAIT_FOR_APPL_RESP | GATT_NOTIFY_WRITE_REQ_AND_WAIT_FOR_APPL_RESP | GATT_NOTIFY_ATTRIBUTE_WRITE,
 							 16,
 							 0,
-							 &ledCharHandle);
+							 &thresholdCharHandle);
 	if (ret != BLE_STATUS_SUCCESS) goto fail;
 
 	charFormat.format = FORMAT_UINT16;
@@ -172,7 +176,7 @@ tBleStatus Add_Environmental_Sensor_Service(void)
 	uuid16 = CHAR_FORMAT_DESC_UUID;
 
 	ret = aci_gatt_add_char_desc(envSensServHandle,
-								 ledCharHandle,
+								 thresholdCharHandle,
 								 UUID_TYPE_16,
 								 (uint8_t *)&uuid16,
 								 7,
@@ -180,7 +184,38 @@ tBleStatus Add_Environmental_Sensor_Service(void)
 								 (void *)&charFormat,
 								 ATTR_PERMISSION_NONE,
 								 ATTR_PERMISSION_NONE,
-								 ATTR_ACCESS_WRITE_REQ_ONLY, //0,
+								 ATTR_ACCESS_READ_WRITE, //ATTR_ACCESS_WRITE_REQ_ONLY, //0,
+								 16,
+								 FALSE,
+								 &descHandle);
+	if (ret != BLE_STATUS_SUCCESS) goto fail;
+
+    /* Alarm Characteristic */
+	COPY_ALARM_CHAR_UUID(uuid);
+	ret =  aci_gatt_add_char(envSensServHandle, UUID_TYPE_128, uuid, 2,
+							 CHAR_PROP_READ, ATTR_PERMISSION_NONE,
+							 GATT_NOTIFY_READ_REQ_AND_WAIT_FOR_APPL_RESP,
+							 16, 0, &alarmCharHandle);
+	if (ret != BLE_STATUS_SUCCESS) goto fail;
+
+	charFormat.format = FORMAT_UINT16;
+	charFormat.exp = -1;
+	charFormat.unit = UNIT_UNITLESS;
+	charFormat.name_space = 0;
+	charFormat.desc = 0;
+
+	uuid16 = CHAR_FORMAT_DESC_UUID;
+
+	ret = aci_gatt_add_char_desc(envSensServHandle,
+								 alarmCharHandle,
+								 UUID_TYPE_16,
+								 (uint8_t *)&uuid16,
+								 7,
+								 7,
+								 (void *)&charFormat,
+								 ATTR_PERMISSION_NONE,
+								 ATTR_ACCESS_READ_ONLY,
+								 0,
 								 16,
 								 FALSE,
 								 &descHandle);
@@ -188,7 +223,7 @@ tBleStatus Add_Environmental_Sensor_Service(void)
 
 
   PRINTF("Service ENV_SENS added. Handle 0x%04X, TEMP Charac handle: 0x%04X, PRESS Charac handle: 0x%04X, HUMID Charac handle: 0x%04X LED Charac handle: 0x%04X\n",
-		  envSensServHandle, tempCharHandle, pressCharHandle, humidityCharHandle, ledCharHandle);
+		  envSensServHandle, tempCharHandle, pressCharHandle, humidityCharHandle, thresholdCharHandle);
 
   return BLE_STATUS_SUCCESS; 
   
@@ -216,6 +251,48 @@ tBleStatus Temp_Update(int16_t temp)
   }
   return BLE_STATUS_SUCCESS;
 	
+}
+
+
+/**
+ * @brief  Update temperature alarm characteristic value.
+ * @param  Temperature alarm
+ * @retval Status
+ */
+tBleStatus Temp_Alarm_Update(int16_t temp_alarm)
+{
+  tBleStatus ret;
+
+  ret = aci_gatt_update_char_value(envSensServHandle, alarmCharHandle, 0, 2,
+                                   (uint8_t*)&temp_alarm);
+
+  if (ret != BLE_STATUS_SUCCESS){
+    PRINTF("Error while updating TEMP ALARM characteristic.\n") ;
+    return BLE_STATUS_ERROR ;
+  }
+  return BLE_STATUS_SUCCESS;
+
+}
+
+
+/**
+ * @brief  Update temperature threshold characteristic value.
+ * @param  Temperature threshold
+ * @retval Status
+ */
+tBleStatus Temp_Threshold_Update(int16_t temp_threshold)
+{
+  tBleStatus ret;
+
+  ret = aci_gatt_update_char_value(envSensServHandle, thresholdCharHandle, 0, 2,
+                                   (uint8_t*)&temp_threshold);
+
+  if (ret != BLE_STATUS_SUCCESS){
+    PRINTF("Error while updating TEMP THRESHOLD characteristic.\n") ;
+    return BLE_STATUS_ERROR ;
+  }
+  return BLE_STATUS_SUCCESS;
+
 }
 
 /**
@@ -327,6 +404,24 @@ void GAP_DisconnectionComplete_CB(void)
   notification_enabled = FALSE;
 }
 
+
+void update_values(void)
+{
+	if(0 != bme280_data_readout()){
+		HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
+		PRINTF("BME280 sensor read failed\r\n");
+		return;
+	}
+
+	if(temp >= temp_threshold){
+		temp_alarm = 1;
+		BSP_LED_On(LED2);
+	}else{
+		temp_alarm = 0;
+		BSP_LED_Off(LED2);
+	}
+
+}
 /**
  * @brief  Read request callback.
  * @param  uint16_t Handle of the attribute
@@ -334,13 +429,6 @@ void GAP_DisconnectionComplete_CB(void)
  */
 void Read_Request_CB(uint16_t handle)
 {  
-
-
-	if(0 != bme280_data_readout()){
-		HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
-		PRINTF("BME280 sensor read failed\r\n");
-		return;
-	}
 
 	if(handle == tempCharHandle + 1){
 		int16_t data = (int16_t)(temp*10);
@@ -356,6 +444,14 @@ void Read_Request_CB(uint16_t handle)
 		uint16_t data = (uint16_t)(hum*10);
 		Humidity_Update(data);
 	}
+	else if(handle == alarmCharHandle + 1){
+		uint16_t data = (uint16_t)(temp_alarm);
+		Temp_Alarm_Update(data);
+	}
+	else if(handle == thresholdCharHandle + 1){
+		uint16_t data = (uint16_t)(temp_threshold);
+		Temp_Threshold_Update(data);
+	}
 
 	if(connection_handle != 0)
 		aci_gatt_allow_read(connection_handle);
@@ -364,12 +460,8 @@ void Read_Request_CB(uint16_t handle)
 
 void Write_Request_CB(evt_gatt_write_permit_req *pr)
 {
-	if(pr->attr_handle == ledCharHandle + 1){
-		if(pr->data[0] == 0x31)
-			BSP_LED_On(LED2);
-		else
-			BSP_LED_Off(LED2);
-
+	if(pr->attr_handle == thresholdCharHandle + 1){
+		temp_threshold = pr->data[1] << 8 | pr->data[0];
 		aci_gatt_write_response(pr->conn_handle, pr->attr_handle, 0, 0, pr->data_length, pr->data);
 	}
 }
